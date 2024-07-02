@@ -45,6 +45,39 @@
       ]
     },
     {
+      "label": "_launch_swiftgram",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/swiftgram-scripts/run-and-attach-simualtor.sh"
+      ],
+      "presentation": {
+        "reveal": "always"
+      },
+      "hide": true,
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": "\\b\\B",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^Launching Swiftgram debug session.*",
+            "endsPattern": "^.*Listening to port 6667 for a connection from .*"
+          }
+        }
+      ],
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
       "label": "_launch_telegram",
       "type": "shell",
       "command": "./scripts/lldb_launch_and_debug.sh",
