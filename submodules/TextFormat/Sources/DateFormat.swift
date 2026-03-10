@@ -90,7 +90,7 @@ private func stringForDayOfWeek(strings: PresentationStrings, day: Int32, short:
     }
 }
 
-public func stringForShortTimestamp(hours: Int32, minutes: Int32, dateTimeFormat: PresentationDateTimeFormat, formatAsPlainText: Bool = false) -> String {
+public func stringForShortTimestamp(hours: Int32, minutes: Int32, seconds: Int32? = nil, dateTimeFormat: PresentationDateTimeFormat, formatAsPlainText: Bool = false) -> String {
     switch dateTimeFormat.timeFormat {
     case .regular:
         let hourString: String
@@ -116,17 +116,23 @@ public func stringForShortTimestamp(hours: Int32, minutes: Int32, dateTimeFormat
             spaceCharacter = "\u{00a0}"
         }
         
-        if minutes >= 10 {
-            return "\(hourString):\(minutes)\(spaceCharacter)\(periodString)"
+        let minuteString = String(format: "%02d", arguments: [Int(minutes)])
+        if let seconds {
+            let secondString = String(format: "%02d", arguments: [Int(seconds)])
+            return "\(hourString):\(minuteString):\(secondString)\(spaceCharacter)\(periodString)"
         } else {
-            return "\(hourString):0\(minutes)\(spaceCharacter)\(periodString)"
+            return "\(hourString):\(minuteString)\(spaceCharacter)\(periodString)"
         }
     case .military:
-        return String(format: "%02d:%02d", arguments: [Int(hours), Int(minutes)])
+        if let seconds {
+            return String(format: "%02d:%02d:%02d", arguments: [Int(hours), Int(minutes), Int(seconds)])
+        } else {
+            return String(format: "%02d:%02d", arguments: [Int(hours), Int(minutes)])
+        }
     }
 }
 
-public func stringForMessageTimestamp(timestamp: Int32, dateTimeFormat: PresentationDateTimeFormat, local: Bool = true) -> String {
+public func stringForMessageTimestamp(timestamp: Int32, dateTimeFormat: PresentationDateTimeFormat, withSeconds: Bool = false, local: Bool = true) -> String {
     var t = Int(timestamp)
     var timeinfo = tm()
     if local {
@@ -134,11 +140,11 @@ public func stringForMessageTimestamp(timestamp: Int32, dateTimeFormat: Presenta
     } else {
         gmtime_r(&t, &timeinfo)
     }
-    if SGSimpleSettings.shared.secondsInMessages {
-        return stringForShortTimestampWithSeconds(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, seconds: timeinfo.tm_sec, dateTimeFormat: dateTimeFormat)
-    } else {
-        return stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, dateTimeFormat: dateTimeFormat)
-    }
+    var withSeconds = withSeconds
+    // MARK: Swiftgram
+    if SGSimpleSettings.shared.secondsInMessages { withSeconds = true }
+    //
+    return stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, seconds: withSeconds ? timeinfo.tm_sec : nil, dateTimeFormat: dateTimeFormat)
 }
 
 public func stringForShortDate(timestamp: Int32, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, withTime: Bool = true) -> String {
@@ -204,44 +210,3 @@ private func stringForFullDate(timestamp: Int32, strings: PresentationStrings, d
 
     return monthFormat(dayString, yearString).string
 }
-
-
-
-
-
-// MARK: Swiftgram
-public func stringForShortTimestampWithSeconds(hours: Int32, minutes: Int32, seconds: Int32, dateTimeFormat: PresentationDateTimeFormat) -> String {
-    switch dateTimeFormat.timeFormat {
-    case .regular:
-        let hourString: String
-        if hours == 0 {
-            hourString = "12"
-        } else if hours > 12 {
-            hourString = "\(hours - 12)"
-        } else {
-            hourString = "\(hours)"
-        }
-        
-        let periodString: String
-        if hours >= 12 {
-            periodString = "PM"
-        } else {
-            periodString = "AM"
-        }
-        
-        let minuteString: String
-        if minutes >= 10 {
-            minuteString = "\(minutes)"
-        } else {
-            minuteString = "0\(minutes)"
-        }
-        if seconds >= 10 {
-            return "\(hourString):\(minuteString):\(seconds)\u{00a0}\(periodString)"
-        } else {
-            return "\(hourString):\(minuteString):0\(seconds)\u{00a0}\(periodString)"
-        }
-    case .military:
-        return String(format: "%02d:%02d:%02d", arguments: [Int(hours), Int(minutes), Int(seconds)])
-    }
-}
-//

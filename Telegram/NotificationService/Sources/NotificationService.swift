@@ -1352,7 +1352,7 @@ private final class NotificationServiceHandler {
                             
                             updateCurrentContent(content)
                         } else if let aps = payloadJson["aps"] as? [String: Any], let url = payloadJson["url"] as? String {
-                            var content: NotificationContent = NotificationContent(isLockedMessage: nil)
+                            var content: NotificationContent = NotificationContent(sgStatus: sgStatus, isLockedMessage: nil)
                             content.userInfo["url"] = url
                             content.userInfo["peerId"] = "777000"
                             content.userInfo["accountId"] = "\(recordId.int64)"

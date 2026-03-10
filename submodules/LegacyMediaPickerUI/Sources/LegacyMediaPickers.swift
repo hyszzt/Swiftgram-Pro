@@ -925,6 +925,8 @@ public func legacyAssetPickerEnqueueMessages(context: AccountContext, account: A
                                         break
                                     }
                                 }
+                            } else if !asAnimation {
+                                finalDimensions = TGMediaVideoConverter.dimensions(for: finalDimensions, adjustments: adjustments, preset: TGMediaVideoConversionPresetCompressedMedium)
                             }
                             
                             var resourceAdjustments: VideoMediaResourceAdjustments?
@@ -1005,9 +1007,21 @@ public func legacyAssetPickerEnqueueMessages(context: AccountContext, account: A
                                 attributes.append(EmbeddedMediaStickersMessageAttribute(files: stickerFiles))
                                 fileAttributes.append(.HasLinkedStickers)
                             }
+                            // MARK: Swiftgram
+                            if asTelescope {
+                                fileAttributes = [.FileName(fileName: "video.mp4"), .Video(duration: finalDuration, size: PixelDimensions(finalDimensions), flags: [.instantRoundVideo], preloadSize: nil, coverTime: nil, videoCodec: nil)]
+                            }
+                            //
+                            let media: Media
+                            let mediaReference: AnyMediaReference
+                            if let adjustments, adjustments.isDefaultValuesForGif(), let originalMediaReference {
+                                media = originalMediaReference.media
+                                mediaReference = originalMediaReference
+                            } else {
+                                media = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: Int64.random(in: Int64.min ... Int64.max)), partialReference: nil, resource: resource, previewRepresentations: previewRepresentations, videoThumbnails: [], videoCover: videoCover, immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: fileAttributes, alternativeRepresentations: [])
+                                mediaReference = .standalone(media: media)
+                            }
                             
-                            let media = TelegramMediaFile(fileId: MediaId(namespace: Namespaces.Media.LocalFile, id: Int64.random(in: Int64.min ... Int64.max)), partialReference: nil, resource: resource, previewRepresentations: previewRepresentations, videoThumbnails: [], videoCover: videoCover, immediateThumbnailData: nil, mimeType: "video/mp4", size: nil, attributes: fileAttributes, alternativeRepresentations: [])
-
                             if let timer = item.timer, timer > 0 && (timer <= 60 || timer == viewOnceTimeout) {
                                 attributes.append(AutoremoveTimeoutMessageAttribute(timeout: Int32(timer), countdownBeginTime: nil))
                             }

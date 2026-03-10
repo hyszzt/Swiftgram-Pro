@@ -6717,7 +6717,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
     private func updateParentMessageIsTranslating(_ isTranslating: Bool) {
         for contentNode in self.contentNodes {
             if let contentNode = contentNode as? ChatMessageTextBubbleContentNode {
-                contentNode.updateIsTranslating(isTranslating)
+                contentNode.updateIsTranslating(isTranslating, showTextAsPlaceholder: false)
             }
         }
     }
