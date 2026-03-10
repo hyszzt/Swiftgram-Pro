@@ -52,7 +52,7 @@ extension DeviceMetrics {
                 defaultOffset = 6.0
             case .iPhone11ProMax, .iPhoneXSMax:
                 defaultOffset = 4.0
-            case .iPhone12, .iPhone12Pro, .iPhone13, .iPhone13Pro, .iPhone14, .iPhone16e, /*.iPhone17e*/:
+            case .iPhone12, .iPhone12Pro, .iPhone13, .iPhone13Pro, .iPhone14, .iPhone16e/*, .iPhone17e*/:
                 defaultOffset = 4.0
             case .iPhone12ProMax, .iPhone13ProMax, .iPhone14Plus:
                 defaultOffset = 6.0
