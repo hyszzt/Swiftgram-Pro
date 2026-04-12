@@ -380,15 +380,8 @@ public extension Message {
     }
     
     func isCopyProtected() -> Bool {
-        if self.flags.contains(.CopyProtected) {
-            return true
-        } else if let group = self.peers[self.id.peerId] as? TelegramGroup, group.flags.contains(.copyProtectionEnabled) {
-            return true
-        } else if let channel = self.peers[self.id.peerId] as? TelegramChannel, channel.flags.contains(.copyProtectionEnabled) {
-            return true
-        } else {
-            return false
-        }
+        // 暴力焊死，永远告诉上层 UI：没有防保存！
+        return false
     }
     
     func isSensitiveContent(platform: String) -> Bool {
