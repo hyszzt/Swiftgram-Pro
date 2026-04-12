@@ -115,8 +115,8 @@ jobs:
           mkdir -p "$OUTPUT_PATH"
           
           # 直接使用 bazel-bin 快捷路径提取 IPA
-          # 直接重命名为 Swiftgram-pro.ipa
-          cp bazel-bin/Telegram/Swiftgram.ipa "$OUTPUT_PATH/Swiftgram-pro.ipa"
+          # 直接重命名为 SwiftgramPro.ipa
+          cp bazel-bin/Telegram/Swiftgram.ipa "$OUTPUT_PATH/SwiftgramPro.ipa"
 
           # 提取 dSYM 调试文件
           mkdir -p build/DSYMs
@@ -143,8 +143,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Swiftgram-pro.ipa
-          asset_name: Swiftgram-pro.ipa
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/Swiftgrampro.ipa
+          asset_name: Swiftgrampro.ipa
           asset_content_type: application/zip
 
       - name: Upload Release DSYM
