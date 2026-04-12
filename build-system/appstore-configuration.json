@@ -13,6 +13,6 @@
     "enable_icloud": true,
     "sg_config": {
         "app_title": "Swiftgram",
-        "short_name": "Swiftgram"
+        "short_name": "Swiftgram-Pro"
     }
 }
