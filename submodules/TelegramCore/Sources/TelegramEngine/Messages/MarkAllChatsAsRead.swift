@@ -4,7 +4,6 @@ import Postbox
 import SwiftSignalKit
 import MtProtoKit
 
-
 func _internal_markAllChatsAsRead(postbox: Postbox, network: Network, stateManager: AccountStateManager) -> Signal<Void, NoError> {
     return network.request(Api.functions.messages.getDialogUnreadMarks(flags: 0, parentPeer: nil))
     |> map(Optional.init)
@@ -24,32 +23,14 @@ func _internal_markAllChatsAsRead(postbox: Postbox, network: Network, stateManag
                         let peer = dialogPeerData.peer
                         let peerId = peer.peerId
                         if peerId.namespace == Namespaces.Peer.CloudChannel {
-                            if let inputChannel = transaction.getPeer(peerId).flatMap(apiInputChannel) {
-                                signals.append(network.request(Api.functions.channels.readHistory(channel: inputChannel, maxId: Int32.max - 1))
-                                |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                                    return .single(.boolFalse)
-                                }
-                                |> mapToSignal { _ -> Signal<Void, NoError> in
-                                    return .complete()
-                                })
+                            if let _ = transaction.getPeer(peerId).flatMap(apiInputChannel) {
+                                // 👻 幽灵模式：强行拦截【频道/超级群】的一键已读请求
+                                signals.append(.complete())
                             }
                         } else if peerId.namespace == Namespaces.Peer.CloudUser || peerId.namespace == Namespaces.Peer.CloudGroup {
-                            if let inputPeer = transaction.getPeer(peerId).flatMap(apiInputPeer) {
-                                signals.append(network.request(Api.functions.messages.readHistory(peer: inputPeer, maxId: Int32.max - 1))
-                                |> map(Optional.init)
-                                |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
-                                    return .single(nil)
-                                }
-                                |> mapToSignal { result -> Signal<Void, NoError> in
-                                    if let result = result {
-                                        switch result {
-                                            case let .affectedMessages(affectedMessagesData):
-                                                let (pts, ptsCount) = (affectedMessagesData.pts, affectedMessagesData.ptsCount)
-                                                stateManager.addUpdateGroups([.updatePts(pts: pts, ptsCount: ptsCount)])
-                                        }
-                                    }
-                                    return .complete()
-                                })
+                            if let _ = transaction.getPeer(peerId).flatMap(apiInputPeer) {
+                                // 👻 幽灵模式：强行拦截【私聊/普通群】的一键已读请求
+                                signals.append(.complete())
                             }
                         } else {
                             assertionFailure()

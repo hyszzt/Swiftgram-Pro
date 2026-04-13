@@ -3,7 +3,6 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-
 private enum PeerReadStateMarker: Equatable {
     case Global(Int32)
     case Channel(Int32)
@@ -224,6 +223,7 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
     return maybeAppliedReadState
 }
 
+// 👻👻👻 下面这里就是被我动过大手术的“幽灵模式核心区” 👻👻👻
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState) -> Signal<PeerReadState, PeerReadStateValidationError> {
     if peerId.namespace == Namespaces.Peer.SecretChat {
         return inputSecretChat(postbox: postbox, peerId: peerId)
@@ -231,14 +231,9 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
             switch readState {
             case .idBased:
                 return .single(readState)
-            case let .indexBased(maxIncomingReadIndex, _, _, _):
-                return network.request(Api.functions.messages.readEncryptedHistory(peer: inputPeer, maxDate: maxIncomingReadIndex.timestamp))
-                    |> mapError { _ in
-                        return PeerReadStateValidationError.retry
-                    }
-                |> mapToSignal { _ -> Signal<PeerReadState, PeerReadStateValidationError> in
-                    return .single(readState)
-                }
+            case .indexBased:
+                // 👻 幽灵模式 1：强行阻断【私密聊天】的已读回执
+                return .single(readState)
             }
         }
     } else {
@@ -249,13 +244,10 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
                 let (channelId, accessHash) = (inputPeerChannelData.channelId, inputPeerChannelData.accessHash)
                 switch readState {
                 case let .idBased(maxIncomingReadId, _, _, _, markedUnread):
-                    var pushSignal: Signal<Void, NoError> = network.request(Api.functions.channels.readHistory(channel: Api.InputChannel.inputChannel(.init(channelId: channelId, accessHash: accessHash)), maxId: maxIncomingReadId))
-                    |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                        return .complete()
-                    }
-                    |> mapToSignal { _ -> Signal<Void, NoError> in
-                        return .complete()
-                    }
+                    
+                    // 👻 幽灵模式 2：强行阻断【频道和超级群】的已读回执
+                    var pushSignal: Signal<Void, NoError> = .complete()
+                    
                     if markedUnread {
                         pushSignal = pushSignal
                         |> then(network.request(Api.functions.messages.markDialogUnread(flags: 1 << 0, parentPeer: nil, peer: .inputDialogPeer(.init(peer: inputPeer))))
@@ -279,21 +271,9 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
             default:
                 switch readState {
                 case let .idBased(maxIncomingReadId, _, _, _, markedUnread):
-                    var pushSignal: Signal<Void, NoError> = network.request(Api.functions.messages.readHistory(peer: inputPeer, maxId: maxIncomingReadId))
-                    |> map(Optional.init)
-                    |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
-                        return .single(nil)
-                    }
-                    |> mapToSignal { result -> Signal<Void, NoError> in
-                        if let result = result {
-                            switch result {
-                                case let .affectedMessages(affectedMessagesData):
-                                    let (pts, ptsCount) = (affectedMessagesData.pts, affectedMessagesData.ptsCount)
-                                    stateManager.addUpdateGroups([.updatePts(pts: pts, ptsCount: ptsCount)])
-                            }
-                        }
-                        return .complete()
-                    }
+                    
+                    // 👻 幽灵模式 3：强行阻断【普通私聊和普通群聊】的已读回执
+                    var pushSignal: Signal<Void, NoError> = .complete()
 
                     if markedUnread {
                         pushSignal = pushSignal
@@ -320,6 +300,7 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
         }
     }
 }
+// 👻👻👻 幽灵模式核心区结束 👻👻👻
 
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId) -> Signal<Never, PeerReadStateValidationError> {
     let currentReadState = postbox.transaction { transaction -> (MessageId.Namespace, PeerReadState)? in
