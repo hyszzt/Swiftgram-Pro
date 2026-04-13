@@ -223,7 +223,7 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
     return maybeAppliedReadState
 }
 
-// 👻👻👻 下面这里就是被我动过大手术的“幽灵模式核心区” 👻👻👻
+// 👻👻👻 幽灵模式核心区 👻👻👻
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState) -> Signal<PeerReadState, PeerReadStateValidationError> {
     if peerId.namespace == Namespaces.Peer.SecretChat {
         return inputSecretChat(postbox: postbox, peerId: peerId)
@@ -240,10 +240,9 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
         return inputPeer(postbox: postbox, peerId: peerId)
         |> mapToSignal { inputPeer -> Signal<PeerReadState, PeerReadStateValidationError> in
             switch inputPeer {
-            case let .inputPeerChannel(inputPeerChannelData):
-                let (channelId, accessHash) = (inputPeerChannelData.channelId, inputPeerChannelData.accessHash)
+            case .inputPeerChannel: // 极客修复：忽略未使用变量 inputPeerChannelData
                 switch readState {
-                case let .idBased(maxIncomingReadId, _, _, _, markedUnread):
+                case let .idBased(_, _, _, _, markedUnread): // 极客修复：将 maxIncomingReadId 替换为 _
                     
                     // 👻 幽灵模式 2：强行阻断【频道和超级群】的已读回执
                     var pushSignal: Signal<Void, NoError> = .complete()
@@ -270,7 +269,7 @@ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager:
                 }
             default:
                 switch readState {
-                case let .idBased(maxIncomingReadId, _, _, _, markedUnread):
+                case let .idBased(_, _, _, _, markedUnread): // 极客修复：将 maxIncomingReadId 替换为 _
                     
                     // 👻 幽灵模式 3：强行阻断【普通私聊和普通群聊】的已读回执
                     var pushSignal: Signal<Void, NoError> = .complete()
