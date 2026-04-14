@@ -84,14 +84,18 @@ jobs:
           find build-system/bazel-rules -name "actool.bzl" -exec sed -i '' 's/fail(/print(/g' {} +
           # 禁用 dSYM 以节省 5-10 分钟
 
-          # 保持图标兼容性脚本
-          mkdir -p Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset
-          python3 -c "import base64; open('Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png', 'wb').write(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='))"
-          sips -z 120 120 Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png --out Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_120.png
-          sips -z 152 152 Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png --out Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_152.png
-          rm Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png
+          # 暴力剔除 Make.py 中的 dSYM 生成逻辑
+          sed -i '' 's/bazel_arguments.append("--apple_generate_dsym")/# bazel_arguments.append("--apple_generate_dsym")/g' build-system/Make/Make.py
+          sed -i '' 's/bazel_arguments.append("--output_groups=+dsyms")/# bazel_arguments.append("--output_groups=+dsyms")/g' build-system/Make/Make.py
+
+          # 保持图标兼容性脚本 (修复：将 Telegram.appiconset 改为 Swiftgram.appiconset)
+          mkdir -p Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset
+          python3 -c "import base64; open('Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/icon_1x1.png', 'wb').write(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='))"
+          sips -z 120 120 Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/icon_1x1.png --out Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/icon_120.png
+          sips -z 152 152 Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/icon_1x1.png --out Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/icon_152.png
+          rm Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/icon_1x1.png
           
-          echo '{"images":[{"idiom":"iphone","size":"60x60","scale":"2x","filename":"icon_120.png"},{"idiom":"ipad","size":"76x76","scale":"2x","filename":"icon_152.png"}],"info":{"version":1,"author":"xcode"}}' > Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/Contents.json
+          echo '{"images":[{"idiom":"iphone","size":"60x60","scale":"2x","filename":"icon_120.png"},{"idiom":"ipad","size":"76x76","scale":"2x","filename":"icon_152.png"}],"info":{"version":1,"author":"xcode"}}' > Telegram/Telegram-iOS/Icons.xcassets/Swiftgram.appiconset/Contents.json
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           
