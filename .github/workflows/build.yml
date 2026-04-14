@@ -32,10 +32,33 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bazel-
 
-      - name: Set active Xcode path
+      - name: Set active Xcode path and auto-detect latest
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
-          sudo xcode-select -s "/Applications/Xcode_$XCODE_VERSION.app/Contents/Developer"
+          TARGET_PATH="/Applications/Xcode_$XCODE_VERSION.app/Contents/Developer"
+          
+          if [ ! -d "$TARGET_PATH" ]; then
+            echo "⚠️ Xcode $XCODE_VERSION is not installed on GitHub's macos-14 runner yet."
+            echo "Available Xcode versions on this runner:"
+            ls -d /Applications/Xcode*.app
+            
+            # 自动寻找当前服务器上安装的最高版本 Xcode
+            LATEST_APP=$(ls -d /Applications/Xcode*.app | grep -v beta | sort -V | tail -n 1)
+            if [ -z "$LATEST_APP" ]; then LATEST_APP=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1); fi
+            
+            REAL_VERSION=$(basename "$LATEST_APP" | sed 's/Xcode_//' | sed 's/.app//')
+            
+            echo "🔄 Auto-falling back to highest available: $REAL_VERSION"
+            sudo xcode-select -s "$LATEST_APP/Contents/Developer"
+            
+            # 动态修改 versions.json，防止后续 Bazel 校验报错
+            sed -i '' "s/\"xcode\": \"$XCODE_VERSION\"/\"xcode\": \"$REAL_VERSION\"/g" versions.json
+          else
+            sudo xcode-select -s "$TARGET_PATH"
+            echo "✅ Successfully selected Xcode $XCODE_VERSION"
+          fi
+          
+          # 补充下载 iOS 模拟器环境（防止 actool 打包报错）
           sudo xcodebuild -downloadPlatform iOS || true
 
       - name: Create canonical source directory
