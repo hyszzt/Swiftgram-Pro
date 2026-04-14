@@ -4215,7 +4215,7 @@ func replayFinalState(
                 }
             // ================== [🤖 媒体流无痕拦截 (闪照破解 + 语音导出)] ==================
                 for i in 0 ..< messages.count {
-                    var msg = messages[i]
+                    let msg = messages[i]
                     var modified = false
                     var newAttributes = msg.attributes
                     var newMedia = msg.media
