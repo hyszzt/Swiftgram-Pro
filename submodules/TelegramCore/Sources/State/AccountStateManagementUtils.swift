@@ -4260,7 +4260,7 @@ func replayFinalState(
                     // 如果触发了任何拦截，重新封装并覆盖原消息
                     if modified {
                         messages[i] = StoreMessage(
-                            id: msg.id, customStableId: msg.customStableId, globallyUniqueId: msg.globallyUniqueId, groupingKey: msg.groupingKey, threadId: msg.threadId, timestamp: msg.timestamp, flags: StoreMessageFlags(msg.flags), tags: msg.tags, globalTags: msg.globalTags, localTags: msg.localTags, forwardInfo: msg.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: msg.authorId,
+                            id: msg.id, customStableId: msg.customStableId, globallyUniqueId: msg.globallyUniqueId, groupingKey: msg.groupingKey, threadId: msg.threadId, timestamp: msg.timestamp, flags: msg.flags, tags: msg.tags, globalTags: msg.globalTags, localTags: msg.localTags, forwardInfo: msg.forwardInfo, authorId: msg.authorId,
                             text: msg.text + interceptTag, // 在文本后追加破解标记
                             attributes: newAttributes, media: newMedia
                         )
