@@ -1,4 +1,6 @@
-
+"""
+Build system configuration variables for Swiftgram.
+"""
 telegram_bundle_id = "ph.telegra.Telegraph"
 telegram_api_id = "31394149"
 telegram_api_hash = "27a9d8aba4e3697e5cba6e7e2e285661"
