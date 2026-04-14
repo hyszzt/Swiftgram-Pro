@@ -53,7 +53,11 @@ private final class AccountPresenceManagerImpl {
             }, queue: self.queue)
             self.onlineTimer = timer
             timer.start()
-            request = self.network.request(Api.functions.account.updateStatus(offline: .boolFalse))
+            
+            // 👻👻👻 极致潜水 2：偷梁换柱！
+            // 把原本的 offline: .boolFalse 强行篡改为 offline: .boolTrue
+            // 让本地定时器每 30 秒向服务器发一次“我已离线”的假情报！
+            request = self.network.request(Api.functions.account.updateStatus(offline: .boolTrue))
         } else {
             self.onlineTimer?.invalidate()
             self.onlineTimer = nil

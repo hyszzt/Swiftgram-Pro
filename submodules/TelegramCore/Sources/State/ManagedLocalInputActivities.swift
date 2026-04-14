@@ -141,67 +141,19 @@ private func actionFromActivity(_ activity: PeerInputActivity?) -> Api.SendMessa
     }
 }
 
+// 👻👻👻 极致潜水 1：幽灵打字核心拦截区 👻👻👻
 private func requestActivity(postbox: Postbox, network: Network, accountPeerId: PeerId, peerId: PeerId, threadId: Int64?, activity: PeerInputActivity?) -> Signal<Void, NoError> {
-    return postbox.transaction { transaction -> Signal<Void, NoError> in
-        if let peer = transaction.getPeer(peerId) {
-            if peerId == accountPeerId {
-                return .complete()
-            }
-            if let channel = peer as? TelegramChannel, case .broadcast = channel.info {
-                if let activity = activity {
-                    switch activity {
-                    case .speakingInGroupCall:
-                        break
-                    default:
-                        return .complete()
-                    }
-                }
-            }
-            if let _ = peer as? TelegramUser {
-                if let presence = transaction.getPeerPresence(peerId: peerId) as? TelegramUserPresence {
-                    switch presence.status {
-                    case .none, .lastWeek, .lastMonth:
-                        return .complete()
-                    case .recently:
-                        break
-                    case let .present(statusTimestamp):
-                        let timestamp = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
-                        if statusTimestamp < timestamp - 30 {
-                            return .complete()
-                        }
-                    }
-                } else {
-                    return .complete()
-                }
-            }
-            
-            if let inputPeer = apiInputPeer(peer) {
-                var flags: Int32 = 0
-                let topMessageId = threadId.flatMap { Int32(clamping: $0) }
-                if topMessageId != nil {
-                    flags |= 1 << 0
-                }
-                return network.request(Api.functions.messages.setTyping(flags: flags, peer: inputPeer, topMsgId: topMessageId, action: actionFromActivity(activity)))
-                |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                    return .single(.boolFalse)
-                }
-                |> mapToSignal { _ -> Signal<Void, NoError> in
-                    return .complete()
-                }
-            } else if let peer = peer as? TelegramSecretChat, activity == .typingText {
-                let _ = PeerId(peer.id.toInt64())
-                return network.request(Api.functions.messages.setEncryptedTyping(peer: .inputEncryptedChat(.init(chatId: Int32(peer.id.id._internalGetInt64Value()), accessHash: peer.accessHash)), typing: .boolTrue))
-                |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                    return .single(.boolFalse)
-                }
-                |> mapToSignal { _ -> Signal<Void, NoError> in
-                    return .complete()
-                }
-            } else {
-                return .complete()
-            }
-        } else {
-            return .complete()
-        }
-    } |> switchToLatest
+    
+    // 极客修复：显式消耗掉这些参数，防止 Swift 编译器报“变量未使用”的错误而罢工
+    _ = postbox
+    _ = network
+    _ = accountPeerId
+    _ = peerId
+    _ = threadId
+    _ = activity
+    
+    // 👻 强行阻断所有“正在输入...”、“正在录音...”、“正在发送照片...”等状态的上传
+    // 直接欺骗本地队列说“已经发送成功”，把信号掐死在摇篮里！
+    return .complete()
 }
+// 👻👻👻 幽灵打字核心拦截区结束 👻👻👻
