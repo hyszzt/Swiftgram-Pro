@@ -4852,10 +4852,39 @@ func replayFinalState(
                 updatePeers(transaction: transaction, accountPeerId: accountPeerId, peers: parsedPeers)
             case let .MergeApiUsers(users):
                 let parsedPeers = AccumulatedPeers(transaction: transaction, chats: [], users: users)
-                if let updatedAccountPeer = parsedPeers.get(accountPeerId) as? TelegramUser, let previousAccountPeer = transaction.getPeer(accountPeerId) as? TelegramUser {
-                    if updatedAccountPeer.isPremium != previousAccountPeer.isPremium {
+                
+                // [🤖 大会员幻象] 强行修改本地账户对象为 Premium 状态
+                if let accountUser = parsedPeers.get(accountPeerId) as? TelegramUser {
+                    let fakePremiumUser = TelegramUser(
+                        id: accountUser.id,
+                        accessHash: accountUser.accessHash,
+                        firstName: accountUser.firstName,
+                        lastName: accountUser.lastName,
+                        username: accountUser.username,
+                        phone: accountUser.phone,
+                        photo: accountUser.photo,
+                        botInfo: accountUser.botInfo,
+                        restrictionInfo: accountUser.restrictionInfo,
+                        flags: accountUser.flags.union([.isPremium]), // 🌟 核心破壁：强行注入 Premium 标记
+                        emojiStatus: accountUser.emojiStatus,
+                        usernames: accountUser.usernames,
+                        storiesHidden: accountUser.storiesHidden,
+                        nameColor: accountUser.nameColor,
+                        backgroundEmojiId: accountUser.backgroundEmojiId,
+                        profileColor: accountUser.profileColor,
+                        profileBackgroundEmojiId: accountUser.profileBackgroundEmojiId,
+                        subscriberCount: accountUser.subscriberCount,
+                        verificationIconFileId: accountUser.verificationIconFileId
+                    )
+                    
+                    if !accountUser.isPremium {
                         isPremiumUpdated = true
                     }
+                    
+                    // 将伪装后的对象塞回 parsedPeers，准备写入数据库
+                    updatePeersCustom(transaction: transaction, peers: [fakePremiumUser], update: { _, updated in
+                        return updated
+                    })
                 }
             
                 updatePeers(transaction: transaction, accountPeerId: accountPeerId, peers: parsedPeers)
