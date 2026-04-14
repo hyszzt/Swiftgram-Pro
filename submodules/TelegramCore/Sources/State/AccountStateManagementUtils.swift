@@ -4387,20 +4387,68 @@ func replayFinalState(
                         let _ = transaction.addMessages(messages, location: .Random)
                     }
                 }
-            case let .DeleteMessagesWithGlobalIds(ids):
+                        case let .DeleteMessagesWithGlobalIds(ids):
+                var actuallyDeleteGlobalIds: [Int32] = []
+                let localIds = transaction.messageIdsForGlobalIds(ids)
+                
+                for i in 0..<ids.count {
+                    let globalId = ids[i]
+                    var intercepted = false
+                    
+                    // 尝试匹配本地 MessageId 拦截别人撤回的全球消息 (主要针对群组/频道)
+                    if i < localIds.count {
+                        let localId = localIds[i]
+                        if let message = transaction.getMessage(localId), message.flags.contains(.Incoming) {
+                            let revokedText = " [🚫 已撤回]"
+                            transaction.updateMessage(localId, update: { currentMessage in
+                                // 防止由于网络波动重复追加标记
+                                if currentMessage.text.contains("[🚫 已撤回]") { return .skip }
+                                let storeForwardInfo = currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init)
+                                return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text + revokedText, attributes: currentMessage.attributes, media: currentMessage.media))
+                            })
+                            intercepted = true
+                        }
+                    }
+                    
+                    if !intercepted {
+                        actuallyDeleteGlobalIds.append(globalId)
+                    }
+                }
+                
                 var resourceIds: [MediaResourceId] = []
-                transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
+                transaction.deleteMessagesWithGlobalIds(actuallyDeleteGlobalIds, forEachMedia: { media in
                     addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
                 })
                 if !resourceIds.isEmpty {
                     let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
                 }
-                deletedMessageIds.append(contentsOf: ids.map { .global($0) })
+                deletedMessageIds.append(contentsOf: actuallyDeleteGlobalIds.map { .global($0) })
+
             case let .DeleteMessages(ids):
-                _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: ids, manualAddMessageThreadStatsDifference: { id, add, remove in
-                    addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
-                })
-                deletedMessageIds.append(contentsOf: ids.map { .messageId($0) })
+                var actuallyDeleteIds: [MessageId] = []
+                for id in ids {
+                    if let message = transaction.getMessage(id), message.flags.contains(.Incoming) {
+                        // 精准拦截私聊或常规群组中别人的撤回操作
+                        let revokedText = " [🚫 已撤回]"
+                        transaction.updateMessage(id, update: { currentMessage in
+                            if currentMessage.text.contains("[🚫 已撤回]") { return .skip }
+                            let storeForwardInfo = currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init)
+                            return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text + revokedText, attributes: currentMessage.attributes, media: currentMessage.media))
+                        })
+                    } else {
+                        // 自己删的消息，或者找不到的消息，正常放行
+                        actuallyDeleteIds.append(id)
+                    }
+                }
+                
+                // 执行真正需要被删除的漏网之鱼（比如自己主动删除的）
+                if !actuallyDeleteIds.isEmpty {
+                    _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: actuallyDeleteIds, manualAddMessageThreadStatsDifference: { id, add, remove in
+                        addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
+                    })
+                    deletedMessageIds.append(contentsOf: actuallyDeleteIds.map { .messageId($0) })
+                }
+
             case let .UpdateMinAvailableMessage(id):
                 if let message = transaction.getMessage(id) {
                     updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: id.peerId, minTimestamp: message.timestamp, forceRootGroupIfNotExists: false)
