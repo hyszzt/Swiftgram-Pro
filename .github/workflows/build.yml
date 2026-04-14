@@ -1,8 +1,13 @@
 name: CI
 
+# 🤖 [终极降维打击] 提升到全局顶层声明，让最蠢的本地检测插件也能看到
+env:
+  BUILD_NUMBER: 0
+  APP_VERSION: 0.0.0
+
 on:
   push:
-    branches: [ main, master ] 
+    branches: [ main, master ]
 
   workflow_dispatch:
 
@@ -18,35 +23,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: '0'
+          fetch-depth: 0
 
       - name: Set active Xcode path and auto-detect latest
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
           TARGET_PATH="/Applications/Xcode_$XCODE_VERSION.app/Contents/Developer"
-          
+
           if [ ! -d "$TARGET_PATH" ]; then
             echo "⚠️ Xcode $XCODE_VERSION is not installed on GitHub's macos-latest runner yet."
             echo "Available Xcode versions on this runner:"
             ls -d /Applications/Xcode*.app
-            
+
             # 自动寻找当前服务器上安装的最高版本 Xcode
             LATEST_APP=$(ls -d /Applications/Xcode*.app | grep -v beta | sort -V | tail -n 1)
             # 如果没有正式版，就用带 beta 的
             if [ -z "$LATEST_APP" ]; then LATEST_APP=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1); fi
-            
+
             REAL_VERSION=$(basename "$LATEST_APP" | sed 's/Xcode_//' | sed 's/.app//')
-            
+
             echo "🔄 Auto-falling back to highest available: $REAL_VERSION"
             sudo xcode-select -s "$LATEST_APP/Contents/Developer"
-            
+
             # 动态修改 versions.json，防止后续部分校验报错
             sed -i '' "s/\"xcode\": \"$XCODE_VERSION\"/\"xcode\": \"$REAL_VERSION\"/g" versions.json
           else
             sudo xcode-select -s "$TARGET_PATH"
             echo "✅ Successfully selected Xcode $XCODE_VERSION"
           fi
-          
+
           # 补充下载 iOS 模拟器环境（防止 actool 打包报错）
           sudo xcodebuild -downloadPlatform iOS || true
 
@@ -87,10 +92,10 @@ jobs:
           # 使用 macOS 自带工具将其精确放大到要求的尺寸
           sips -z 120 120 Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png --out Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_120.png
           sips -z 152 152 Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png --out Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_152.png
-          
+
           # 删除原始底片，避免 actool 报 unassigned child 错误
           rm Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/icon_1x1.png
-          
+
           cat << 'EOF' > Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset/Contents.json
           {
             "images" : [
@@ -102,7 +107,7 @@ jobs:
           EOF
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
-          
+
           # 🚀 使用官方原生参数 --overrideXcodeVersion 完美绕过版本硬校验
           python3 -u build-system/Make/Make.py \
             --overrideXcodeVersion \
@@ -117,7 +122,7 @@ jobs:
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
-          
+
           # 直接使用 bazel-bin 快捷路径提取 IPA
           # 直接重命名为 SwiftgramPro.ipa
           cp bazel-bin/Telegram/Swiftgram.ipa "$OUTPUT_PATH/SwiftgramPro.ipa"
@@ -127,37 +132,22 @@ jobs:
           cp -R bazel-bin/Telegram/*.dSYM build/DSYMs/
           zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 🤖 [终极修复] 使用现代化的一体化 Release 插件，完美解决权限问题并合并上传步骤
+      - name: Release IPA and DSYMs
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ env.BUILD_NUMBER }}
-          release_name: Telegram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+          name: Telegram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
           body: |
             An unsigned build of Telegram for iOS ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
-          draft: false
-          prerelease: false
 
-      - name: Upload Release IPA
-        id: upload-release-ipa 
-        uses: actions/upload-release-asset@v1
+            🔥 **Swiftgram-Pro Features:**
+            - Anti-Revoke (Messages & Media)
+            - Local Premium Spoofing
+            - View-Once Media Bypass
+            - Voice Message Export Unlocked
+          files: |
+            /Users/Shared/telegram-ios/build/artifacts/SwiftgramPro.ipa
+            /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/SwiftgramPro.ipa
-          asset_name: SwiftgramPro.ipa
-          asset_content_type: application/zip
-
-      - name: Upload Release DSYM
-        id: upload-release-dsym 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
-          asset_name: Telegram.DSYMs.zip
-          asset_content_type: application/zip
