@@ -6,6 +6,10 @@ on:
 
   workflow_dispatch:
 
+# 🤖 [安全红线] 显式声明权限，破除 Checkov 警报，同时允许创建 Release
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-latest
@@ -143,8 +147,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Swiftgrampro.ipa
-          asset_name: Swiftgrampro.ipa
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/SwiftgramPro.ipa
+          asset_name: SwiftgramPro.ipa
           asset_content_type: application/zip
 
       - name: Upload Release DSYM
