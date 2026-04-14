@@ -83,7 +83,6 @@ jobs:
           # 🚀 优化 3：全局手术刀 —— 强行关闭调试符号生成和图标校验
           find build-system/bazel-rules -name "actool.bzl" -exec sed -i '' 's/fail(/print(/g' {} +
           # 禁用 dSYM 以节省 5-10 分钟
-          sed -i '' 's/--apple_generate_dsym//g' build-system/Make/Make.py
 
           # 保持图标兼容性脚本
           mkdir -p Telegram/Telegram-iOS/Icons.xcassets/Telegram.appiconset
