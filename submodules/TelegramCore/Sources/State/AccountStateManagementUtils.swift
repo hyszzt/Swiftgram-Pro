@@ -4398,7 +4398,6 @@ func replayFinalState(
                     if i < localIds.count {
                         let localId = localIds[i]
                         if let message = transaction.getMessage(localId) {
-                            // 扩大保护：不论敌我，一律拦截
                             let revokedText = message.flags.contains(.Incoming) ? " [🚫 对方撤回]" : " [🚫 双向删除]"
                             transaction.updateMessage(localId, update: { currentMessage in
                                 if currentMessage.text.contains("[🚫") { return .skip }
@@ -4414,20 +4413,20 @@ func replayFinalState(
                     }
                 }
                 
-                var resourceIds: [MediaResourceId] = []
-                transaction.deleteMessagesWithGlobalIds(actuallyDeleteGlobalIds, forEachMedia: { media in
-                    addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
-                })
-                if !resourceIds.isEmpty {
-                    let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
-                }
+                /* ================= 进阶四：物理文件锁定 =================
+                   我们把这里的 mediaBox.removeCachedResources 彻底阉割了。
+                   同时传入空的 forEachMedia 闭包。
+                   这意味着哪怕是系统强制清理，或者你自己删除了这条消息，
+                   缓存在你手机里的视频、图片和文件也绝对不会被删掉！
+                ======================================================== */
+                transaction.deleteMessagesWithGlobalIds(actuallyDeleteGlobalIds, forEachMedia: { _ in })
+                // 屏蔽了媒体清理逻辑：if !resourceIds.isEmpty { let _ = mediaBox.removeCachedResources... }
                 deletedMessageIds.append(contentsOf: actuallyDeleteGlobalIds.map { .global($0) })
 
             case let .DeleteMessages(ids):
                 var actuallyDeleteIds: [MessageId] = []
                 for id in ids {
                     if let message = transaction.getMessage(id) {
-                        // 扩大保护：防御对方双向删除导致己方消息消失
                         let revokedText = message.flags.contains(.Incoming) ? " [🚫 对方撤回]" : " [🚫 双向删除]"
                         transaction.updateMessage(id, update: { currentMessage in
                             if currentMessage.text.contains("[🚫") { return .skip }
@@ -4447,19 +4446,11 @@ func replayFinalState(
                 }
 
             case let .UpdateMinAvailableMessage(id):
-                // 防御“清空聊天记录”核打击：更新时间戳以防报错，但物理阉割它的范围删除能力
                 if let message = transaction.getMessage(id) {
                     updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: id.peerId, minTimestamp: message.timestamp, forceRootGroupIfNotExists: false)
                 }
-                
-                /* ================= 物理截断：绝不删除本地资源 =================
-                var resourceIds: [MediaResourceId] = []
-                transaction.deleteMessagesInRange(peerId: id.peerId, namespace: id.namespace, minId: 1, maxId: id.id, forEachMedia: { media in
-                    addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
-                })
-                if !resourceIds.isEmpty {
-                    let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
-                }
+                /* ================= 物理文件锁定（清空历史场景） =================
+                   同样阉割掉范围删除时的 mediaBox 清理指令
                 ============================================================ */
             case let .UpdatePeerChatInclusion(peerId, groupId, changedGroup):
                 let currentInclusion = transaction.getPeerChatListInclusion(peerId)
