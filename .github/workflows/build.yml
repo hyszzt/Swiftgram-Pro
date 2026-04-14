@@ -15,7 +15,7 @@ permissions:
 jobs:
   build:
     # 🚀 优化 1：强制指定 M1 芯片运行器 (macos-14 是目前性价比之王)
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@v4
